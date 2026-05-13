@@ -1,24 +1,69 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import ctypes
+from pathlib import Path
+import sys
+
+
+def _prepare_tcl_runtime() -> None:
+    if sys.platform != "win32":
+        return
+
+    roots = []
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        roots.append(Path(frozen_root))
+    roots.extend(Path(path) for path in {sys.base_prefix, sys.prefix} if path)
+
+    for root in roots:
+        for dll_path in (root / "tcl86t.dll", root / "DLLs" / "tcl86t.dll"):
+            if not dll_path.exists():
+                continue
+            try:
+                tcl = ctypes.CDLL(str(dll_path))
+                tcl.Tcl_FindExecutable(ctypes.c_wchar_p(sys.executable))
+                return
+            except Exception:
+                continue
+
+
+_prepare_tcl_runtime()
+
 import tkinter as tk
 from math import cos, sin
 from tkinter import ttk
 
-from .models import Vector2
-from .simulation import (
-    CATALOG_DECADE_LABELS,
-    ENEMY_PROFILES,
-    EW_ACTIONS,
-    EW_ACTION_MIN_YEARS,
-    INTERCEPTOR_PROFILES,
-    MAP_PROFILES,
-    PROJECTILE_PROFILES,
-    RADAR_DECADE_LABELS,
-    RADAR_PROFILES,
-    WORLD_HALF_SIZE,
-    SimulationWorld,
-)
+try:
+    from .models import Vector2
+    from .simulation import (
+        CATALOG_DECADE_LABELS,
+        ENEMY_PROFILES,
+        EW_ACTIONS,
+        EW_ACTION_MIN_YEARS,
+        INTERCEPTOR_PROFILES,
+        MAP_PROFILES,
+        PROJECTILE_PROFILES,
+        RADAR_DECADE_LABELS,
+        RADAR_PROFILES,
+        WORLD_HALF_SIZE,
+        SimulationWorld,
+    )
+except ImportError:  # pragma: no cover - supports direct PyInstaller script launch
+    from game_radar.models import Vector2
+    from game_radar.simulation import (
+        CATALOG_DECADE_LABELS,
+        ENEMY_PROFILES,
+        EW_ACTIONS,
+        EW_ACTION_MIN_YEARS,
+        INTERCEPTOR_PROFILES,
+        MAP_PROFILES,
+        PROJECTILE_PROFILES,
+        RADAR_DECADE_LABELS,
+        RADAR_PROFILES,
+        WORLD_HALF_SIZE,
+        SimulationWorld,
+    )
 
 try:
     import winsound

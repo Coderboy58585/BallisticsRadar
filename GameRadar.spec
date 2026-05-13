@@ -1,5 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+from pathlib import Path
+
+build_support = str(Path.cwd() / 'build_support')
+pythonpath = os.environ.get('PYTHONPATH')
+os.environ['PYTHONPATH'] = build_support if not pythonpath else build_support + os.pathsep + pythonpath
+
 
 a = Analysis(
     ['src\\game_radar\\app.py'],
