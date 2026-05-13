@@ -10,6 +10,10 @@ class Observation:
     projectile_id: int
     position: Vector2
     timestamp: float
+    altitude: float = 0.0
+    source_name: str = ""
+    track_mode: str = "surveillance-track"
+    engageable: bool = True
 
 
 @dataclass(slots=True)
@@ -17,13 +21,22 @@ class Track:
     projectile_id: int
     position: Vector2
     velocity: Vector2 = ZERO
+    altitude: float = 0.0
+    vertical_velocity: float = 0.0
     last_timestamp: float = 0.0
     confidence: float = 0.25
     samples: int = 1
+    source_name: str = ""
+    track_mode: str = "surveillance-track"
+    engageable: bool = True
 
     def predict(self, timestamp: float) -> Vector2:
         dt = max(0.0, timestamp - self.last_timestamp)
         return self.position + self.velocity * dt
+
+    def predict_altitude(self, timestamp: float) -> float:
+        dt = max(0.0, timestamp - self.last_timestamp)
+        return max(0.0, self.altitude + self.vertical_velocity * dt)
 
 
 @dataclass(slots=True)
@@ -51,7 +64,11 @@ class RadarTracker:
             track = Track(
                 projectile_id=observation.projectile_id,
                 position=observation.position,
+                altitude=observation.altitude,
                 last_timestamp=observation.timestamp,
+                source_name=observation.source_name,
+                track_mode=observation.track_mode,
+                engageable=observation.engageable,
             )
             self._tracks[observation.projectile_id] = track
             return track
@@ -59,14 +76,24 @@ class RadarTracker:
         dt = observation.timestamp - track.last_timestamp
         if dt <= 0:
             track.position = observation.position
+            track.altitude = observation.altitude
+            track.source_name = observation.source_name
+            track.track_mode = observation.track_mode
+            track.engageable = observation.engageable
             return track
 
         measured_velocity = (observation.position - track.position) / dt
+        measured_vertical_velocity = (observation.altitude - track.altitude) / dt
         alpha = self.smoothing
         track.velocity = track.velocity * (1.0 - alpha) + measured_velocity * alpha
+        track.vertical_velocity = track.vertical_velocity * (1.0 - alpha) + measured_vertical_velocity * alpha
         track.position = observation.position
+        track.altitude = observation.altitude
         track.last_timestamp = observation.timestamp
         track.samples += 1
+        track.source_name = observation.source_name
+        track.track_mode = observation.track_mode
+        track.engageable = observation.engageable
         track.confidence = min(1.0, track.confidence + 0.12)
         return track
 
